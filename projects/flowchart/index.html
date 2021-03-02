@@ -1,0 +1,258 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+    <title>Flowchart Runner</title>
+    <script src="https://unpkg.com/gojs/release/go.js" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/gojs/extensions/Figures.js" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/jquery/dist/jquery.js" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/mathjs/lib/browser/math.js" crossorigin="anonymous"></script>
+    <script src="js/flowchartWorker.js"></script>
+    <script>
+        function init() {
+            var $ = go.GraphObject.make;
+            myDiagram = $(go.Diagram, "flowChart",
+                {
+                    "undoManager.isEnabled": true
+                });
+            function makePort(name, align, isOutput)
+            {
+                var horizontal = align.equals(go.Spot.Top) || align.equals(go.Spot.Bottom);
+                return $(go.Shape,
+                    {
+                        fill: "rgba(255,0,255,0.5)",
+                        strokeWidth: 0,
+                        width: 8,
+                        height: 8,
+                        alignment: align,
+                        portId: name,
+                        fromSpot: align,
+                        fromLinkable: isOutput,
+                        fromMaxLinks: 1,
+                        toSpot: align,
+                        toLinkable: !isOutput,
+                        cursor: "pointer",
+                    });
+            }
+            myDiagram.linkTemplate = $(go.Link, 
+                {
+                    routing: go.Link.Orthogonal,
+                    relinkableFrom: true,
+                    relinkableTo: true,
+                    reshapable: true,
+                    resegmentable: true
+                },
+                $(go.Shape, { stroke: "white", strokeWidth: 2 }),
+                $(go.Shape, { toArrow: "Standard", fill: "white", stroke: "white" })
+            );
+            myDiagram.nodeTemplateMap.add("Begin",
+                $(go.Node, "Spot",
+                    $(go.Panel, "Auto",
+                        $(go.Shape, "RoundedRectangle",
+                            {
+                                desiredSize: new go.Size(150, 50),
+                                fill: "#282c34",
+                                stroke: "#00A9C9",
+                                strokeWidth: 3.5,
+                                parameter1: 25
+                            }),
+                        $(go.TextBlock, { text: "Begin", stroke: "white" })
+                    ),
+                makePort("next", go.Spot.Bottom, true)
+                )
+            );
+            myDiagram.nodeTemplateMap.add("End",
+                $(go.Node, "Spot",
+                    $(go.Panel, "Auto",
+                        $(go.Shape, "RoundedRectangle",
+                            {
+                                desiredSize: new go.Size(150, 50),
+                                fill: "#282c34",
+                                stroke: "#00A9C9",
+                                strokeWidth: 3.5,
+                                parameter1: 25
+                            }),
+                        $(go.TextBlock, { text: "End", stroke: "white" })
+                    ),
+                makePort("prev", go.Spot.Top, false)
+                )
+            );
+            myDiagram.nodeTemplateMap.add("Input",
+                $(go.Node, "Spot",
+                    $(go.Panel, "Auto",
+                        $(go.Shape, "Parallelogram",
+                            {
+                                minSize: new go.Size(150, 50),
+                                fill: "#282c34",
+                                stroke: "#00A9C9",
+                                strokeWidth: 3.5,
+                            }),
+                        $(go.Panel, "Horizontal",
+                            $(go.TextBlock, { text: "Input:", stroke: "white", margin: 4 }),
+                            $(go.TextBlock, { stroke: "white", editable: true, isMultiline: false },
+                                new go.Binding("text", "var").makeTwoWay()
+                            )
+                        )
+                    ),
+                makePort("prev", go.Spot.Top, false),
+                makePort("next", go.Spot.Bottom, true)
+                )
+            );
+            myDiagram.nodeTemplateMap.add("Output",
+                $(go.Node, "Spot",
+                    $(go.Panel, "Auto",
+                        $(go.Shape, "Parallelogram",
+                            {
+                                minSize: new go.Size(150, 50),
+                                fill: "#282c34",
+                                stroke: "#00A9C9",
+                                strokeWidth: 3.5
+                            }),
+                        $(go.Panel, "Horizontal",
+                            $(go.TextBlock, { text: "Output:", stroke: "white", margin: 4 }),
+                            $(go.TextBlock, { stroke: "white", editable: true, isMultiline: false },
+                                new go.Binding("text", "expr").makeTwoWay()
+                            )
+                        )
+                    ),
+                makePort("prev", go.Spot.Top, false),
+                makePort("next", go.Spot.Bottom, true)
+                )
+            );
+            myDiagram.nodeTemplateMap.add("Assign",
+                $(go.Node, "Spot",
+                    $(go.Panel, "Auto",
+                        $(go.Shape, "Rectangle",
+                            {
+                                minSize: new go.Size(150, 50),
+                                fill: "#282c34",
+                                stroke: "#00A9C9",
+                                strokeWidth: 3.5,
+                            }),
+                        $(go.Panel, "Horizontal",
+                            $(go.TextBlock, { stroke: "white", margin: 4, editable: true, isMultiline: false },
+                                new go.Binding("text", "var").makeTwoWay()
+                            ),
+                            $(go.TextBlock, { stroke: "white", text: "\u2190" }),
+                            $(go.TextBlock, { stroke: "white", margin: 4, editable: true, isMultiline: false },
+                                new go.Binding("text", "value").makeTwoWay()
+                            )
+                        )
+                    ),
+                makePort("prev", go.Spot.Top, false),
+                makePort("next", go.Spot.Bottom, true)
+                )
+            );
+            myDiagram.nodeTemplateMap.add("Condition",
+                $(go.Node, "Spot",
+                    $(go.Panel, "Auto",
+                        $(go.Shape, "Diamond",
+                            {
+                                minSize: new go.Size(150, 50),
+                                fill: "#282c34",
+                                stroke: "#00A9C9",
+                                strokeWidth: 3.5,
+                            }),
+                        $(go.TextBlock, {stroke: "white", editable: true, isMultiline: false },
+                            new go.Binding("text", "expr").makeTwoWay()
+                        ),
+                    ),
+                    $(go.TextBlock,
+                        {
+                            stroke: "lightgreen",
+                            text: "T",
+                            alignment: go.Spot.Left,
+                            verticalAlignment: go.Spot.Top,
+                            height: 40,
+                            font: "800 25px"
+                        }
+                    ),
+                    $(go.TextBlock,
+                        {
+                            stroke: "tomato",
+                            text: "F",
+                            alignment: go.Spot.Right,
+                            verticalAlignment: go.Spot.Top,
+                            height: 40,
+                            font: "800 25px"
+                        }
+                    ),
+                makePort("prev", go.Spot.Top, false),
+                makePort("T", go.Spot.Left, true),
+                makePort("F", go.Spot.Right, true)
+                )
+            );
+            myDiagram.model = $(go.GraphLinksModel,
+                {
+                    linkFromPortIdProperty: "fromPort",
+                    linkToPortIdProperty: "toPort"
+                }
+            );
+            myPalette = $(go.Palette, "palette",
+                {
+                    nodeTemplateMap: myDiagram.nodeTemplateMap,
+                    model: new go.GraphLinksModel([
+                        { category: "Begin" },
+                        { category: "End" },
+                        { category: "Input", "var": "var" },
+                        { category: "Output", "expr": "expr" },
+                        { category: "Assign", "var": "a", "value": "1" },
+                        { category: "Condition", expr: "???" }
+                    ])
+                });
+        }
+        function clearFlowchart()
+        {
+            myDiagram.clear();
+        }
+        function getFlowchartJSON()
+        {
+            alert(myDiagram.model.toJson());
+        }
+        function submitFlowchart()
+        {
+            const stdout = flowchartRun(myDiagram.model.toJson(), $( "#input" ).val());
+            $( "#output" ).val(stdout);
+        }
+    </script>
+    <style>
+        #pageTitle {
+            text-align: center;
+        }
+        #workArea {
+            display: flex;
+        }
+        #textField > textarea {
+            height: 15em;
+            width: 45%
+        }
+    </style>
+</head>
+
+<body onload="init()">
+    <h1 id="pageTitle">Flowchart Runner</h1>
+    <hr />
+    <div id="workArea">
+        <div id="palette" style="
+            height: 750px;
+            width: 250px;
+            background-color: #282c34;">
+        </div>
+        <div id="flowChart" style="
+            height: 750px;
+            width: calc(100% - 250px);
+            background-color: #282c34;">
+        </div>
+    </div>
+    <div id="control">
+        <button onclick="submitFlowchart()">Submit</button>
+        <button onclick="clearFlowchart()">Clear</button>
+        <button onclick="getFlowchartJSON()">Get JSON</button>
+    </div>
+    <div id="textField">
+        <textarea id= "input" name= "input" placeholder= "Input"         ></textarea>
+        <textarea id="output" name="output" placeholder="Output" readonly></textarea>
+    </div>
+</body>
+
+</html>
