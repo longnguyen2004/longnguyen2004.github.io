@@ -2,22 +2,20 @@
     <head>
 	    <title>Anti Image Save Test</title>
 		<script>
-		    fetch("./img.jpg").then(res => res.blob()).then(blob =>
+			window.addEventListener("DOMContentLoaded", () =>
 			{
-				const cvs = document.getElementById("cvs");
-				const ctx = cvs.getContext("2d");
-				const img = new Image();
-				img.onload = (event) =>
+				fetch("./img.jpg").then(res => res.blob()).then(blob =>
 				{
-					URL.revokeObjectURL(event.target.src);
-					ctx.drawImage(event.target, 0, 0)
-				}
-				img.src = URL.createObjectURL(blob);
+					const cvs = document.getElementById("cvs");
+					const link = URL.createObjectURL(blob);
+					cvs.style.background = `url(${link})`;
+					URL.revokeObjectURL(link);
+				});
 			});
 		</script>
 	</head>
 	<body>
 	    <p>Good luck :)</p>
-		<canvas id="cvs" />
+		<div id="cvs" />
 	</body>
 </html>
